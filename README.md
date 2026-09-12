@@ -29,3 +29,4 @@ ai-research-assistant/
 ├── main.py
 ├── requirements.txt
 └── README.md
+└── README.md
