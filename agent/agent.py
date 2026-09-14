@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 
-from tools.research import planned_research
+from tools.research import planned_research_with_evidence
 from tools.calculator import calculate
 from tools.time import get_current_time
 from reports.report_generator import generate_research_report
@@ -26,16 +26,17 @@ class Agent:
         self.client = genai.Client(api_key=api_key)
 
         def research_tool(topic: str):
-            """Search the web using a planned multi-query research pipeline."""
+            """Search the web and extract structured evidence."""
 
-            sources = planned_research(topic)
+            research_result = planned_research_with_evidence(topic)
 
             self.last_research = {
                 "topic": topic,
-                "sources": sources,
+                "sources": research_result["sources"],
+                "evidence": research_result["evidence"],
             }
 
-            return sources
+            return research_result
 
         self.chat = self.client.chats.create(
             model="gemini-3.5-flash-lite",
@@ -66,6 +67,7 @@ class Agent:
                 report_path = generate_research_report(
                     self.last_research["topic"],
                     self.last_research["sources"],
+                    evidence=self.last_research["evidence"],
                 )
 
                 return {

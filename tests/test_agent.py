@@ -20,6 +20,20 @@ SAMPLE_SOURCES = [
     },
 ]
 
+SAMPLE_EVIDENCE = [
+    {
+        "title": "AI Agents Report",
+        "url": "https://example.com/report",
+        "snippet": "AI agents can plan and use tools.",
+        "source_score": 4.5,
+    }
+]
+
+SAMPLE_RESEARCH_RESULT = {
+    "sources": SAMPLE_SOURCES,
+    "evidence": SAMPLE_EVIDENCE,
+}
+
 
 @pytest.fixture
 def mock_client():
@@ -105,8 +119,8 @@ def test_agent_run_research_flow_captures_state_and_generates_report(
         clear=False,
     ):
         with patch(
-            "agent.agent.planned_research",
-            return_value=SAMPLE_SOURCES,
+            "agent.agent.planned_research_with_evidence",
+            return_value=SAMPLE_RESEARCH_RESULT,
         ) as mock_research:
             with patch(
                 "agent.agent.generate_research_report",
@@ -140,7 +154,9 @@ def test_agent_run_research_flow_captures_state_and_generates_report(
     assert agent.last_research == {
         "topic": "AI agent architecture",
         "sources": SAMPLE_SOURCES,
+        "evidence": SAMPLE_EVIDENCE,
     }
+    assert agent.last_research["evidence"] == SAMPLE_EVIDENCE
 
     assert result["type"] == "research"
     assert result["content"] == "Here is the research summary."
@@ -153,6 +169,7 @@ def test_agent_run_research_flow_captures_state_and_generates_report(
     mock_generate_report.assert_called_once_with(
         "AI agent architecture",
         SAMPLE_SOURCES,
+        evidence=SAMPLE_EVIDENCE,
     )
 
 

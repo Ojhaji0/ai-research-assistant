@@ -6,6 +6,7 @@ from tools.research import (
     research,
     research_multiple_queries,
     planned_research,
+    planned_research_with_evidence,
 )
 
 
@@ -325,3 +326,27 @@ def test_planned_research_runs_full_pipeline():
     assert results[0]["title"] == "Academic Source"
     assert results[1]["title"] == "Normal Source"
     assert results[0]["score"] > results[1]["score"]
+
+
+def test_planned_research_with_evidence(monkeypatch):
+    sources = [
+        {
+            "title": "AI Agents Report",
+            "url": "https://example.com/report",
+            "content": "AI agents can plan and use tools.",
+            "score": 4.5,
+        }
+    ]
+
+    monkeypatch.setattr(
+        "tools.research.planned_research",
+        lambda topic: sources,
+    )
+
+    result = planned_research_with_evidence("AI agents")
+
+    assert result["sources"] == sources
+    assert len(result["evidence"]) == 1
+    assert result["evidence"][0]["title"] == "AI Agents Report"
+    assert result["evidence"][0]["url"] == "https://example.com/report"
+    assert result["evidence"][0]["snippet"] == sources[0]["content"]

@@ -73,3 +73,66 @@ def test_generate_research_report_custom_path(tmp_path):
 
     assert result == str(output_path)
     assert output_path.exists()
+
+
+def test_generate_research_report_includes_evidence(tmp_path):
+    output_path = tmp_path / "evidence_report.md"
+
+    sources = [
+        {
+            "title": "AI Agents Source",
+            "url": "https://example.com/ai-agents",
+            "content": "Full source content.",
+            "score": 4.5,
+        }
+    ]
+
+    evidence = [
+        {
+            "title": "AI Agents Source",
+            "url": "https://example.com/ai-agents",
+            "snippet": "AI agents can plan and use tools.",
+            "source_score": 4.5,
+        }
+    ]
+
+    result = generate_research_report(
+        "AI Agents",
+        sources,
+        evidence=evidence,
+        output_path=str(output_path),
+    )
+
+    content = output_path.read_text(encoding="utf-8")
+
+    assert result == str(output_path)
+    assert "## Evidence" in content
+    assert "AI agents can plan and use tools." in content
+    assert "https://example.com/ai-agents" in content
+
+
+def test_generate_research_report_without_evidence_remains_compatible(
+    tmp_path,
+):
+    output_path = tmp_path / "legacy_report.md"
+
+    sources = [
+        {
+            "title": "Example Source",
+            "url": "https://example.com",
+            "content": "Example content.",
+            "score": 3.0,
+        }
+    ]
+
+    generate_research_report(
+        "Example Topic",
+        sources,
+        output_path=str(output_path),
+    )
+
+    content = output_path.read_text(encoding="utf-8")
+
+    assert "## Evidence" not in content
+    assert "## Sources" in content
+    assert "Example Source" in content

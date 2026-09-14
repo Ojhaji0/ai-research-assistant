@@ -4,6 +4,8 @@ from urllib.parse import urlparse
 from dotenv import load_dotenv
 from tavily import TavilyClient
 
+from evidence.extractor import extract_evidence_from_sources
+
 
 load_dotenv()
 
@@ -144,6 +146,19 @@ def planned_research(topic: str):
     print(f"\n[PLANNED RESEARCH] Selected {len(sources)} quality sources")
 
     return sources
+
+
+def planned_research_with_evidence(topic: str):
+    """Run planned research and extract structured evidence."""
+
+    sources = planned_research(topic)
+
+    evidence = extract_evidence_from_sources(sources)
+
+    return {
+        "sources": sources,
+        "evidence": evidence,
+    }
 
 
 def research(topic: str):
