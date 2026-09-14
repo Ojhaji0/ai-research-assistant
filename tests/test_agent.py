@@ -105,7 +105,7 @@ def test_agent_run_research_flow_captures_state_and_generates_report(
         clear=False,
     ):
         with patch(
-            "agent.agent.research",
+            "agent.agent.planned_research",
             return_value=SAMPLE_SOURCES,
         ) as mock_research:
             with patch(

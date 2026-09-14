@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 
-from tools.research import research
+from tools.research import planned_research
 from tools.calculator import calculate
 from tools.time import get_current_time
 from reports.report_generator import generate_research_report
@@ -26,9 +26,9 @@ class Agent:
         self.client = genai.Client(api_key=api_key)
 
         def research_tool(topic: str):
-            """Search the web for information about a research topic."""
+            """Search the web using a planned multi-query research pipeline."""
 
-            sources = research(topic)
+            sources = planned_research(topic)
 
             self.last_research = {
                 "topic": topic,
