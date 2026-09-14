@@ -1,92 +1,79 @@
+import os
+
+from dotenv import load_dotenv
+from google import genai
+from google.genai import types
+
 from tools.research import research
-from tools.calculator import add, subtract, multiply, divide
+from tools.calculator import calculate
 from tools.time import get_current_time
+from reports.report_generator import generate_research_report
+
+
+load_dotenv()
 
 
 class Agent:
     def __init__(self):
         self.name = "AI Research Assistant"
+        self.last_research = None
+
+        api_key = os.getenv("GEMINI_API_KEY")
+
+        if not api_key:
+            raise ValueError("GEMINI_API_KEY not found in .env file")
+
+        self.client = genai.Client(api_key=api_key)
+
+        def research_tool(topic: str):
+            """Search the web for information about a research topic."""
+
+            sources = research(topic)
+
+            self.last_research = {
+                "topic": topic,
+                "sources": sources,
+            }
+
+            return sources
+
+        self.chat = self.client.chats.create(
+            model="gemini-3.5-flash-lite",
+            config=types.GenerateContentConfig(
+                system_instruction=(
+                    "You are an AI Research Assistant. "
+                    "Use the available tools when appropriate. "
+                    "Use the research tool for web research questions. "
+                    "Use the calculator tool for mathematical calculations. "
+                    "Use the time tool when the user asks for the current time. "
+                    "For normal conversation, respond directly."
+                ),
+                tools=[
+                    research_tool,
+                    get_current_time,
+                    calculate,
+                ],
+            ),
+        )
 
     def run(self, message: str):
-        message = message.strip()
+        self.last_research = None
 
-        # -------------------------
-        # Research
-        # -------------------------
-        if message.lower().startswith("research:"):
-            topic = message.split(":", 1)[1].strip()
+        response = self.chat.send_message(message)
 
-            results = research(topic)
-
-            return {
-                "type": "research",
-                "topic": topic,
-                "results": results,
-            }
-
-        # Natural language research command
-        if message.lower().startswith("research "):
-            topic = message.split(" ", 1)[1].strip()
-
-            results = research(topic)
+        if self.last_research:
+            report_path = generate_research_report(
+                self.last_research["topic"],
+                self.last_research["sources"],
+            )
 
             return {
                 "type": "research",
-                "topic": topic,
-                "results": results,
+                "content": response.text,
+                "report_path": report_path,
             }
 
-        # -------------------------
-        # Current time
-        # -------------------------
-        if message.lower() == "time":
-            return {
-                "type": "time",
-                "value": get_current_time(),
-            }
-
-        # -------------------------
-        # Calculator
-        # -------------------------
-        if message.lower().startswith("calculate:"):
-            parts = message.split(":", 1)[1].strip()
-
-            try:
-                a, op, b = parts.split()
-
-                a = float(a)
-                b = float(b)
-
-                if op == "+":
-                    result = add(a, b)
-                elif op == "-":
-                    result = subtract(a, b)
-                elif op == "*":
-                    result = multiply(a, b)
-                elif op == "/":
-                    result = divide(a, b)
-                else:
-                    raise ValueError("Unsupported operator")
-
-                return {
-                    "type": "calculator",
-                    "result": result,
-                }
-
-            except Exception as e:
-                return {
-                    "type": "error",
-                    "message": str(e),
-                }
-
-        # -------------------------
-        # Default
-        # -------------------------
         return {
             "type": "message",
-            "content": (
-                f"Hello! I am {self.name}. "
-                "Try 'Research <topic>', 'time', "
-                "or 'calculate: 5 + 3'"
-            ),
+            "content": response.text,
         }
