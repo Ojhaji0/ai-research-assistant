@@ -172,10 +172,11 @@ def test_agent_run_api_error_handling(mock_client):
     ):
         agent = Agent()
 
-    with pytest.raises(
-        RuntimeError,
-        match="Gemini API unavailable",
-    ):
-        agent.run("Hello")
+    result = agent.run("Hello")
+
+    assert result == {
+        "type": "error",
+        "content": "Something went wrong: Gemini API unavailable",
+    }
 
     assert agent.last_research is None

@@ -59,21 +59,28 @@ class Agent:
     def run(self, message: str):
         self.last_research = None
 
-        response = self.chat.send_message(message)
+        try:
+            response = self.chat.send_message(message)
 
-        if self.last_research:
-            report_path = generate_research_report(
-                self.last_research["topic"],
-                self.last_research["sources"],
-            )
+            if self.last_research:
+                report_path = generate_research_report(
+                    self.last_research["topic"],
+                    self.last_research["sources"],
+                )
+
+                return {
+                    "type": "research",
+                    "content": response.text,
+                    "report_path": report_path,
+                }
 
             return {
-                "type": "research",
+                "type": "message",
                 "content": response.text,
-                "report_path": report_path,
             }
 
-        return {
-            "type": "message",
-            "content": response.text,
-        }
+        except Exception as e:
+            return {
+                "type": "error",
+                "content": f"Something went wrong: {e}",
+            }
