@@ -88,6 +88,64 @@ def filter_quality_sources(results):
     return filtered
 
 
+def research_multiple_queries(queries: list[str]):
+    """Run multiple research queries and aggregate their raw results."""
+
+    if not queries:
+        return []
+
+    all_results = []
+
+    for query in queries:
+        print(f"\n[SUB-QUERY] {query}")
+
+        response = tavily.search(
+            query=query,
+            search_depth="advanced",
+            max_results=10,
+        )
+
+        results = response.get("results", [])
+        all_results.extend(results)
+
+    return all_results
+
+
+def planned_research(topic: str):
+    """Run a complete multi-query research pipeline."""
+
+    from planner.query_planner import generate_queries
+
+    queries = generate_queries(topic)
+
+    raw_results = research_multiple_queries(queries)
+
+    results = deduplicate_sources(raw_results)
+    results = filter_quality_sources(results)
+
+    ranked_results = sorted(
+        results,
+        key=source_score,
+        reverse=True,
+    )
+
+    selected = ranked_results[:5]
+
+    sources = []
+
+    for result in selected:
+        sources.append({
+            "title": result.get("title", ""),
+            "url": result.get("url", ""),
+            "content": result.get("content", ""),
+            "score": round(source_score(result), 2),
+        })
+
+    print(f"\n[PLANNED RESEARCH] Selected {len(sources)} quality sources")
+
+    return sources
+
+
 def research(topic: str):
     """Search the web and return ranked research sources."""
 

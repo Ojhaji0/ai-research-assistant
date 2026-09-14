@@ -2,7 +2,11 @@ from unittest.mock import patch
 
 import pytest
 
-from tools.research import research
+from tools.research import (
+    research,
+    research_multiple_queries,
+    planned_research,
+)
 
 
 def test_research_returns_results():
@@ -232,3 +236,92 @@ def test_research_ranks_sources_and_limits_to_top_five():
 
     assert "Extra Source 1" not in titles
     assert "Extra Source 2" not in titles
+
+
+def test_research_multiple_queries_aggregates_results():
+    responses = [
+        {
+            "results": [
+                {
+                    "title": "Source One",
+                    "url": "https://example.com/one",
+                    "content": (
+                        "This is sufficiently detailed content "
+                        "for the first research query."
+                    ),
+                    "score": 0.9,
+                }
+            ]
+        },
+        {
+            "results": [
+                {
+                    "title": "Source Two",
+                    "url": "https://example.com/two",
+                    "content": (
+                        "This is sufficiently detailed content "
+                        "for the second research query."
+                    ),
+                    "score": 0.8,
+                }
+            ]
+        },
+    ]
+
+    with patch(
+        "tools.research.tavily.search",
+        side_effect=responses,
+    ):
+        results = research_multiple_queries(
+            [
+                "AI agents overview",
+                "AI agents latest developments",
+            ]
+        )
+
+    assert len(results) == 2
+    assert results[0]["title"] == "Source One"
+    assert results[1]["title"] == "Source Two"
+
+
+def test_planned_research_runs_full_pipeline():
+    raw_results = [
+        {
+            "title": "Normal Source",
+            "url": "https://example.com/normal",
+            "content": (
+                "This is sufficiently detailed research content "
+                "that should pass the quality filter."
+            ),
+            "score": 0.9,
+        },
+        {
+            "title": "Academic Source",
+            "url": "https://research.edu/academic",
+            "content": (
+                "This is sufficiently detailed academic research "
+                "content that should receive a quality bonus."
+            ),
+            "score": 0.5,
+        },
+        {
+            "title": "Duplicate Source",
+            "url": "https://example.com/normal/",
+            "content": (
+                "This duplicate source should be removed by "
+                "the URL deduplication step."
+            ),
+            "score": 0.8,
+        },
+    ]
+
+    with patch(
+        "tools.research.research_multiple_queries",
+        return_value=raw_results,
+    ):
+        results = planned_research("AI agents")
+
+    assert len(results) == 2
+    assert results[0]["title"] == "Academic Source"
+    assert results[1]["title"] == "Normal Source"
+    assert results[0]["score"] > results[1]["score"]
