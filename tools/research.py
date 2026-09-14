@@ -1,6 +1,9 @@
 import os
-from tavily import TavilyClient
+from urllib.parse import urlparse
+
 from dotenv import load_dotenv
+from tavily import TavilyClient
+
 
 load_dotenv()
 
@@ -12,6 +15,79 @@ if not api_key:
 tavily = TavilyClient(api_key=api_key)
 
 
+def source_score(result):
+    """Calculate a quality score for a research source."""
+
+    url = result.get("url", "").lower()
+    score = result.get("score", 0)
+
+    domain = urlparse(url).netloc
+    domain = domain.removeprefix("www.")
+
+    total = score
+
+    if domain.endswith(".edu"):
+        total += 3
+    elif domain.endswith(".gov"):
+        total += 3
+    elif any(domain == trusted_domain for trusted_domain in [
+        "google.com",
+        "microsoft.com",
+        "ibm.com",
+        "salesforce.com",
+        "anthropic.com",
+        "openai.com",
+    ]):
+        total += 2
+    elif domain in ["linkedin.com", "medium.com"]:
+        total -= 1
+
+    return round(total, 2)
+
+
+def deduplicate_sources(results):
+    """Remove duplicate sources based on normalized URLs."""
+
+    seen_urls = set()
+    unique_results = []
+
+    for result in results:
+        url = result.get("url", "").strip().lower()
+
+        if not url:
+            continue
+
+        normalized_url = url.rstrip("/")
+
+        if normalized_url in seen_urls:
+            continue
+
+        seen_urls.add(normalized_url)
+        unique_results.append(result)
+
+    return unique_results
+
+
+def filter_quality_sources(results):
+    """Remove sources with missing titles or insufficient content."""
+
+    filtered = []
+
+    for result in results:
+        title = result.get("title", "").strip()
+        content = result.get("content", "").strip()
+
+        if not title:
+            continue
+
+        if len(content) < 50:
+            continue
+
+        filtered.append(result)
+
+    return filtered
+
+
 def research(topic: str):
     """Search the web and return ranked research sources."""
 
@@ -20,39 +96,18 @@ def research(topic: str):
     response = tavily.search(
         query=topic,
         search_depth="advanced",
-        max_results=10
+        max_results=10,
     )
 
     results = response.get("results", [])
 
-    def source_score(result):
-        url = result.get("url", "").lower()
-        score = result.get("score", 0)
-
-        total = score
-
-        if ".edu" in url:
-            total += 3
-        elif ".gov" in url:
-            total += 3
-        elif any(domain in url for domain in [
-            "google.com",
-            "microsoft.com",
-            "ibm.com",
-            "salesforce.com",
-            "anthropic.com",
-            "openai.com"
-        ]):
-            total += 2
-        elif "linkedin.com" in url or "medium.com" in url:
-            total -= 1
-
-        return total
+    results = deduplicate_sources(results)
+    results = filter_quality_sources(results)
 
     ranked_results = sorted(
         results,
         key=source_score,
-        reverse=True
+        reverse=True,
     )
 
     selected = ranked_results[:5]
@@ -64,7 +119,7 @@ def research(topic: str):
             "title": result.get("title", ""),
             "url": result.get("url", ""),
             "content": result.get("content", ""),
-            "score": round(source_score(result), 2)
+            "score": round(source_score(result), 2),
         })
 
     print(f"[TOOL RESULT] Selected {len(sources)} quality sources")
